@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include "hashmap.h"
 
 #define DEFAULT_CAP 7
@@ -24,9 +25,14 @@ static struct DictEntry* get_entry(HashMap *set, void *key);
 
 int is_prime(int n)
 {
-	if (n == 1)
-		return 0;
-	for (int i=2; i*i <= n; i++) {
+	if (n % 2 == 0)
+		return n == 2;
+	if (n % 3 == 0)
+		return n == 3;
+
+	int k = 4;
+	int limit = sqrt(n) + 1;
+	for (int i=5; i <= limit; k = 6 - k, i+= k) {
 		if (n % i == 0)
 			return 0;
 	}
@@ -103,7 +109,8 @@ static int hashmap_extend(HashMap *set)
 	for (int i=0; i<set->capacity; i++) set->table[i] = NULL;
 	for (int i=0; i<old_capacity; i++) {
 		struct DictEntry *elem = old_table[i];
-		if (!elem) continue;
+		if (!elem)
+			continue;
 		size_t index = get_index(set, elem->key);
 		set->table[index] = elem;
 	}
