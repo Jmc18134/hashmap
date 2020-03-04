@@ -41,7 +41,7 @@ int is_prime(int n)
 
 int next_prime(int n)
 {
-	while (!is_prime(n)) {n++;};
+	while (!is_prime(++n));
 	return n;
 }
 
@@ -88,8 +88,6 @@ void destroy_hashmap(HashMap *set)
 static size_t get_index(const HashMap *set, const void *elem)
 {
 	size_t index = set->kops.hash(elem, set->kops.arg) % set->capacity;
-	if (set->table[index])
-		printf("HASH COLLISION! %d at same hash as %d\n", set->table[index], (int) elem);
 	while (set->table[index])
 		index = (index + 1) % set->capacity;
 	return index;
@@ -98,15 +96,16 @@ static size_t get_index(const HashMap *set, const void *elem)
 static int hashmap_extend(HashMap *set)
 {
 	size_t old_capacity = set->capacity;
-	struct DictEntry **old_table = set->table;
-
 	size_t new_capacity = next_prime(set->capacity * 2);
-	struct DictEntry **new = malloc(new_capacity * sizeof(void*));
+
+	struct DictEntry **old_table = set->table;
+	struct DictEntry **new_table = malloc(new_capacity * sizeof(void*));
 	if (!new)
 		return 1;
-	set->table = new;
+	set->table = new_table;
 	set->capacity = new_capacity;
 	for (int i=0; i<set->capacity; i++) set->table[i] = NULL;
+
 	for (int i=0; i<old_capacity; i++) {
 		struct DictEntry *elem = old_table[i];
 		if (!elem)
