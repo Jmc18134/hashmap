@@ -6,7 +6,6 @@
 #include "hashmap.h"
 
 #define DEFAULT_CAP 7
-#define PRIME 37
 
 struct DictEntry {
 	int key;
@@ -20,9 +19,9 @@ struct HashMap {
 	size_t capacity;
 };
 
-int hashmap_insert(HashMap *map, int key, int value);
 static struct DictEntry* get_entry(HashMap *map, int key);
-static unsigned long inthash (int num);
+static void destroy_table(struct DictEntry **e, size_t size);
+static inline unsigned long inthash (int num);
 
 static bool is_prime(int n)
 {
@@ -77,7 +76,7 @@ ERR:
 
 void destroy_hashmap(HashMap *map)
 {
-	free(map->table);
+	destroy_table(map->table, map->capacity);
 	free(map);
 }
 
@@ -162,18 +161,21 @@ int hashmap_insert(HashMap *map, int key, int value)
 	return 0;
 }
 
-int hashmap_get(HashMap *map, int key)
+/* TODO: See get_entry */
+int hashmap_get(HashMap *map, int key, int *result)
 {
 	size_t index = inthash(key) % map->capacity;
 	while (map->table[index]) {
-		if (key == map->table[index]->key)
-			return map->table[index]->value;
+		if (key == map->table[index]->key) {
+			*result = map->table[index]->value;
+			return 0;
+		}
 		index++;
 	}
-	return NULL;
+	return 1;
 }
 
-int hashmap_remove(HashMap *map, int key)
+void hashmap_remove(HashMap *map, int key)
 {
 	size_t index = inthash(key) % map->capacity;
 	while (map->table[index]) {
@@ -181,14 +183,19 @@ int hashmap_remove(HashMap *map, int key)
 			free(map->table[index]);
 			map->table[index] = NULL;
 			rectify(map, index);
-			return 0;
 		}
 		index++;
 	}
-	return 0;
 }
 
-static unsigned long inthash (int num)
+static void destroy_table(struct DictEntry **e, size_t size) {
+	for (size_t i=0; i<size; i++) {
+		free(e[i]);
+	}
+	free(e);
+}
+
+static inline unsigned long inthash (int num)
 {
 	return (unsigned long) num * 2654435761;
 }
