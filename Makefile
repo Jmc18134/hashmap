@@ -14,4 +14,4 @@ clean:
 	rm -f *.o
 
 cleanbuild:
-	clean shell
+	clean dict_test

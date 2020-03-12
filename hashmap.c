@@ -100,7 +100,7 @@ static int hashmap_extend(HashMap *set)
 
 	struct DictEntry **old_table = set->table;
 	struct DictEntry **new_table = malloc(new_capacity * sizeof(void*));
-	if (!new)
+	if (!new_table)
 		return 1;
 	set->table = new_table;
 	set->capacity = new_capacity;
