@@ -1,17 +1,25 @@
-CC=gcc
-CFLAGS=-Wall -Wextra -std=c18 -pedantic -g -lm
+CC=gcc -fPIC
+CFLAGS=-Wall -Wextra -std=c18 -pedantic -lm
+TESTFLAGS=-g
+LIBFLAGS=-O2
+LDFLAGS=-shared
+LIBNAME=libhashmap.so
 DEPS=hashmap.h
-OBJ=main.o hashmap.o
+TESTFILES=test.o
+OBJ=hashmap.o
 
 %.o: %.c $(DEPS)
-	$(CC) -c -o $@ $< $(CFLAGS)
+	$(CC) -c -o $@ $< $(CFLAGS) $(TESTFLAGS)
 
-dict_test: $(OBJ)
-	$(CC) -o $@ $^ $(CFLAGS)
+lib: $(OBJ)
+	$(CC) $^ $(CFLAGS) $(LIBFLAGS) $(LDFLAGS) -o $(LIBNAME)
+
+test: $(TESTFILES) $(OBJ)
+	$(CC) -o $@ $^ $(CFLAGS) $(TESTFLAGS)
 
 .PHONY: clean
 clean:
 	rm -f *.o
 
-cleanbuild:
-	clean dict_test
+veryclean:
+	rm -f *.o $(LIBNAME) test
