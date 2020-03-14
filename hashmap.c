@@ -121,7 +121,7 @@ void rectify(HashMap *map, size_t index)
 		map->table[cursor] = NULL;
 		size_t index = get_index(map, elem->key);
 		map->table[index] = elem;
-		cursor++;
+		cursor = (cursor + 1) % map->capacity;
 	}
 }
 
@@ -170,7 +170,7 @@ int hashmap_get(HashMap *map, int key, int *result)
 			*result = map->table[index]->value;
 			return 0;
 		}
-		index++;
+		index = (index + 1) % map->capacity;
 	}
 	return 1;
 }
@@ -185,7 +185,7 @@ int hashmap_remove(HashMap *map, int key)
 			rectify(map, index);
 			return 0;
 		}
-		index++;
+		index = (index + 1) % map->capacity;
 	}
 	return 1;
 }
