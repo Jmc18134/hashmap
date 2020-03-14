@@ -22,6 +22,7 @@ struct HashMap {
 static struct DictEntry* get_entry(HashMap *map, int key);
 static void destroy_table(struct DictEntry **e, size_t size);
 static inline unsigned long inthash (int num);
+static inline size_t wrapped_inc(size_t n, size_t capacity);
 
 static bool is_prime(int n)
 {
@@ -65,12 +66,12 @@ HashMap* new_hashmap(void)
 	for (size_t i=0; i<new->capacity; i++) {
 		new->table[i] = NULL;
 	}
-
 	return new;
 
 ERR:
-	if (new)
+	if (new) {
 		free(new);
+	}
 	return NULL;
 }
 
@@ -80,31 +81,44 @@ void destroy_hashmap(HashMap *map)
 	free(map);
 }
 
+/* TODO: If the hashmap is full (somehow) this will never return */
+/* Return the index of the next unoccupied slot in the table for element elem */
 static size_t get_index(const HashMap *map, int elem)
 {
 	size_t index = inthash(elem) % map->capacity;
-	while (map->table[index])
-		index = (index + 1) % map->capacity;
+	while (map->table[index]) {
+		index = wrapped_inc(index, map->capacity);
+	}
 	return index;
 }
 
+/* Increase the size of the table to the next prime number
+ * that is >= twice the previous size. Rehashes every element
+ * 
+ * Returns nonzero on failure */
 static int hashmap_extend(HashMap *map)
 {
 	size_t old_capacity = map->capacity;
-	size_t new_capacity = next_prime(map->capacity * 2);
+	size_t new_capacity = next_prime(2 * map->capacity);
 
 	struct DictEntry **old_table = map->table;
 	struct DictEntry **new_table = malloc(new_capacity * sizeof(struct DictElem *));
-	if (!new_table)
+	if (!new_table) {
 		return 1;
+	}
+
 	map->table = new_table;
 	map->capacity = new_capacity;
-	for (int i=0; i<map->capacity; i++) map->table[i] = NULL;
+	/* NULL-out the new table */
+	for (size_t i=0; i<map->capacity; map->table[i] = NULL, i++);
 
-	for (int i=0; i<old_capacity; i++) {
+	/* Rehash elements into the new table */
+	for (size_t i=0; i<old_capacity; i++) {
 		struct DictEntry *elem = old_table[i];
-		if (!elem)
+		if (!elem) {
 			continue;
+		}
+
 		size_t index = get_index(map, elem->key);
 		map->table[index] = elem;
 	}
@@ -115,32 +129,41 @@ static int hashmap_extend(HashMap *map)
 /* Keep the table working with linear probing after deletion */
 void rectify(HashMap *map, size_t index)
 {
-	size_t cursor = index + 1;
+	size_t cursor = wrapped_inc(index, map->capacity);
 	while (map->table[cursor]) {
 		struct DictEntry *elem = map->table[cursor];
 		map->table[cursor] = NULL;
+
 		size_t index = get_index(map, elem->key);
 		map->table[index] = elem;
-		cursor = (cursor + 1) % map->capacity;
+		cursor = wrapped_inc(cursor, map->capacity);
 	}
 }
 
+/* TODO: This could maybe make use of elem->hash */
 static struct DictEntry *get_entry(HashMap *map, int key)
 {
 	size_t index = inthash(key) % map->capacity;
 	while (map->table[index]) {
-		if (key == map->table[index]->key)
+		if (key == map->table[index]->key) {
 			return map->table[index];
-		index++;
+		}
+		index = wrapped_inc(index, map->capacity);
 	}
 	return NULL;
 }
 
+/* Insert key:value pair into the hashmap
+ * If key already exists, value is overwritten
+ *
+ * Returns non-zero on failure */
 int hashmap_insert(HashMap *map, int key, int value)
 {
+	/* Resize if the map is getting too cluttered */
 	if (map->size > 2*(map->capacity / 3)) {
-		if (hashmap_extend(map))
+		if (hashmap_extend(map)) {
 			return 1;
+		}
 	}
 
 	struct DictEntry *e = get_entry(map, key);
@@ -148,8 +171,9 @@ int hashmap_insert(HashMap *map, int key, int value)
 		e->value = value;
 	} else {
 		struct DictEntry *new = malloc(sizeof(struct DictEntry));
-		if (!new)
+		if (!new) {
 			return 1;
+		}
 		new->hash = inthash(key);
 		new->key = key;
 		new->value = value;
@@ -161,20 +185,21 @@ int hashmap_insert(HashMap *map, int key, int value)
 	return 0;
 }
 
-/* TODO: See get_entry */
+/* Get the element indexed by key, and place it in result 
+ * Returns non-zero and leaves result unchanged on failure */
 int hashmap_get(HashMap *map, int key, int *result)
 {
-	size_t index = inthash(key) % map->capacity;
-	while (map->table[index]) {
-		if (key == map->table[index]->key) {
-			*result = map->table[index]->value;
-			return 0;
-		}
-		index = (index + 1) % map->capacity;
+	struct DictEntry *entry = get_entry(map, key);
+	if (entry) {
+		*result = entry->value;
+		return 0;
 	}
 	return 1;
 }
 
+/* Remove key:value from the map
+ *
+ * Returns non-zero if key does not exist in map */
 int hashmap_remove(HashMap *map, int key)
 {
 	size_t index = inthash(key) % map->capacity;
@@ -185,7 +210,7 @@ int hashmap_remove(HashMap *map, int key)
 			rectify(map, index);
 			return 0;
 		}
-		index = (index + 1) % map->capacity;
+		index = wrapped_inc(index, map->capacity);
 	}
 	return 1;
 }
@@ -200,4 +225,9 @@ static void destroy_table(struct DictEntry **e, size_t size) {
 static inline unsigned long inthash (int num)
 {
 	return (unsigned long) num * 2654435761;
+}
+
+static inline size_t wrapped_inc(size_t n, size_t capacity)
+{
+	return (n + 1) % capacity;
 }
