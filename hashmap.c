@@ -175,7 +175,7 @@ int hashmap_get(HashMap *map, int key, int *result)
 	return 1;
 }
 
-void hashmap_remove(HashMap *map, int key)
+int hashmap_remove(HashMap *map, int key)
 {
 	size_t index = inthash(key) % map->capacity;
 	while (map->table[index]) {
@@ -183,9 +183,11 @@ void hashmap_remove(HashMap *map, int key)
 			free(map->table[index]);
 			map->table[index] = NULL;
 			rectify(map, index);
+			return 0;
 		}
 		index++;
 	}
+	return 1;
 }
 
 static void destroy_table(struct DictEntry **e, size_t size) {
