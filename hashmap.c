@@ -24,6 +24,61 @@ static void destroy_table(struct DictEntry **e, size_t size);
 static inline unsigned long inthash (int num);
 static inline size_t wrapped_inc(size_t n, size_t capacity);
 
+static inline void set_bit(unsigned int *arr, unsigned int k)
+{
+	size_t bits = 8 * sizeof(unsigned int);
+	arr[k/bits] |= 1 << (k%bits);
+}
+
+static inline void clear_bit(unsigned int *arr, unsigned int k)
+{
+	size_t bits = 8 * sizeof(unsigned int);
+	arr[k/bits] &= ~(1 << (k%bits));
+}
+
+static inline bool get_bit(unsigned int *arr, unsigned int k)
+{
+	size_t bits = 8 * sizeof(unsigned int);
+	return arr[k/bits] & (1 << (k%bits));
+}
+
+/* Sieve of eratosthenes, returns primes < n
+ * Returns NULL on failure */
+static int *sieve(int n)
+{
+	int *primes = malloc(n * sizeof(int));
+	if (!primes) {
+		return NULL;
+	}
+
+	/* Create a bitarray with at least n bits, and set 
+	 * all the even bits to 0, the odd bits to 1 */
+	size_t size = (n / (8 * sizeof(unsigned int))) + 1;
+	unsigned int indices[size];
+	for (size_t i=0; i<size; i++) {
+		/* I don't like this
+		 * TODO: Somehow make this work when word size != 4 */
+		indices[i] = 0xAAAAAAAA;
+	}
+
+	int sqrtn = (int) sqrt(n);
+	for (int i=3; i<=sqrtn; i+=2) {
+		if (get_bit(indices, i)) {
+			for (int j=i*i; j<n; j+=(2*i)) {
+				clear_bit(indices, j);
+			}
+		}
+	}
+	
+	primes[0] = 0;
+	primes[1] = 1;
+	primes[2] = 2;
+	for (int i=3; i<n; i+=2) {
+		primes[i] = get_bit(indices, i) ? i : 0;
+	}
+	return primes;
+}
+
 static bool is_prime(int n)
 {
 	if (n % 2 == 0)
